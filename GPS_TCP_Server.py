@@ -39,7 +39,7 @@ original_heading = None
 # Lock for synchronizing access to data_buffer
 buffer_lock = threading.Lock()
 
-def apply_offset_to_heading():
+def apply_offset_to_heading(data):
     """Apply heading offset to the original heading."""
     global original_heading
     if original_heading is not None:
@@ -69,7 +69,7 @@ def broadcast_data():
     """Broadcast GPS data to all connected clients."""
     with buffer_lock:
         # Apply heading offset
-        apply_offset_to_heading()
+        apply_offset_to_heading(data_buffer)
 
         # Prepare JSON data, excluding fields that are None
         json_data = json.dumps({k: v for k, v in data_buffer.items() if v is not None}, indent=4)
