@@ -61,9 +61,10 @@ def apply_offset_and_sign(data):
                 print(f"Warning: Field {field} could not be converted to float for rounding.")
 
 def broadcast_data():
-    """Broadcast IMU data to all connected clients."""
+    """Broadcast GPS data to all connected clients."""
     with buffer_lock:
-        apply_offset_and_sign(data_buffer)
+        # Apply heading offset
+        apply_offset_to_heading(data_buffer)
 
         # Prepare JSON data, excluding fields that are None
         json_data = json.dumps({k: v for k, v in data_buffer.items() if v is not None}, indent=4)
@@ -74,9 +75,15 @@ def broadcast_data():
         for client in clients[:]:  # Use a copy of the list to avoid modification during iteration
             try:
                 client.sendall(json_data.encode('utf-8'))
-                print(f"Sent data to client: {client.getpeername()}")
+                print(f"Sent data to client.")
+            except (OSError, ConnectionResetError) as e:
+                # Handle client disconnection without calling getpeername
+                print("Error sending data to client. Removing client from list.")
+                clients.remove(client)
+                client.close()
             except Exception as e:
-                print(f"Error sending data to client {client.getpeername()}: {e}")
+                # Catch any other exceptions that may arise
+                print("Unexpected error with client. Removing client from list.")
                 clients.remove(client)
                 client.close()
 
