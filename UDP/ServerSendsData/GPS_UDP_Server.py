@@ -61,7 +61,7 @@ def apply_offset(data):
     else:
         data["Heading"] = None
 
-        fields_to_round_seven = ["Latitude", "Longitude"]
+    fields_to_round_seven = ["Latitude", "Longitude"]
 
     for field in fields_to_round_seven:
         if data[field] is not None:
