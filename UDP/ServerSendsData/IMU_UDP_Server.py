@@ -27,6 +27,7 @@ data_buffer = {
     "IMU_Temperature": None
 }
 
+clients = [] 
 # Original IMU values (for optional negation)
 original_imu_pitch = None
 original_imu_roll = None
@@ -37,6 +38,8 @@ buffer_lock = threading.Lock()
 
 # Configure UDP socket
 udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+udp_socket.bind((UDP_IP, UDP_PORT))
+#udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
 def apply_config_to_imu_data(data):
     """Apply optional negation for IMU fields based on configuration."""
@@ -59,10 +62,26 @@ def apply_config_to_imu_data(data):
 def send_imu_data():
     """Send IMU data over UDP."""
     with buffer_lock:
-        # Filter out None values and prepare JSON
+        # Apply offset and optional negations to all available fields
+        #apply_offset_and_sign(data_buffer)
+
+        # Prepare JSON data, excluding fields that are None
         json_data = json.dumps({k: v for k, v in data_buffer.items() if v is not None}, indent=4)
-    udp_socket.sendto(json_data.encode('utf-8'), (UDP_IP, UDP_PORT))
-    print(f"Sent IMU data to {UDP_IP}:{UDP_PORT}: {json_data}")
+        
+        print(f"Sent data: {json_data}")  # Debugging line to check data being broadcasted
+
+        # Broadcast to all clients
+        for client in clients:
+            udp_socket.sendto(json_data.encode('utf-8'), client)
+            print(f"Broadcasting data to {client}: {json_data}")
+
+def start_udp_server():
+    global clients
+    while True:
+        message, address = udp_socket.recvfrom(1024)
+        if message.decode('utf-8') == "connect" and address not in clients:
+            clients.append(address)
+            print(f"Client {address} connected")
 
 def parse_imu_message(message):
     """Parse IMU message and store data in the buffer."""
@@ -106,4 +125,8 @@ def read_imu_data(serial_port='/dev/ttyAMA1', baudrate=4800):
 
 if __name__ == "__main__":
     # Start reading IMU data in the main thread
+    server_thread = threading.Thread(target=start_udp_server, daemon=True)
+    server_thread.start()
+
+    # Start reading serial data in the main thread
     read_imu_data()
