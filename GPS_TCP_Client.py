@@ -36,28 +36,78 @@ data_buffer = {
 server_ip = '127.0.0.1'  # Replace with the remote server's IP
 server_port = 13370      # Replace with the remote server's port
 
+client_socket = None
+socket_lock = threading.Lock()
+
 # Lock for synchronizing access to data_buffer
 buffer_lock = threading.Lock()
 
-def apply_heading_offset():
-    """Apply offset to GPS heading."""
-    if data_buffer["Heading"] is not None:
-        data_buffer["Heading"] = (data_buffer["Heading"] + config.get("heading_offset", 0)) % 360.0
+def init_socket():
+    """Initialize and connect the client socket to the server."""
+    global client_socket
+    try:
+        client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        client_socket.connect((server_ip, server_port))
+        print("Connection established with server.")
+    except Exception as e:
+        print(f"Error connecting to server: {e}")
+        client_socket = None
 
-def send_data_to_server():
-    """Send GPS data to the remote server."""
-    with buffer_lock:
-        apply_heading_offset()
-        # Prepare JSON data, excluding fields that are None
-        json_data = json.dumps({k: v for k, v in data_buffer.items() if v is not None}, indent=4)
+def apply_offset_and_sign(data):
+    """Apply offset to GPS heading and optional negation to Roll, Pitch, and Yaw."""
+    global original_heading, original_imu_pitch, original_imu_roll, original_imu_heading
 
-        try:
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
-                client_socket.connect((server_ip, server_port))
+    # Apply offset to heading based on original_heading
+    if original_heading is not None:
+        adjusted_heading = (original_heading + config.get("heading_offset", 0)) % 360.0
+        data["Heading"] = adjusted_heading
+    else:
+        data["Heading"] = None
+
+    # Apply optional negation for IMU fields
+
+    # Round and format each relevant field to seven decimal places as a string
+    fields_to_round_seven = ["Latitude", "Longitude"]
+
+    for field in fields_to_round_seven:
+        if data[field] is not None:
+            try:
+                data[field] = f"{float(data[field]):.7f}"
+            except ValueError:
+                print(f"Warning: Field {field} could not be converted to float for rounding.")
+    
+    fields_to_round_one = ["Altitude", "Heading", "Antenna_Distance", "Heading"]
+                   
+    for field in fields_to_round_one:
+        if data[field] is not None:
+            try:
+                data[field] = f"{float(data[field]):.1f}"
+            except ValueError:
+                print(f"Warning: Field {field} could not be converted to float for rounding.")
+
+
+
+def send_data_to_server(data_buffer):
+    """Send data to the server, keeping the connection open as long as possible."""
+    global client_socket
+    apply_offset_and_sign(data_buffer)
+    # Prepare JSON data, excluding fields that are None
+    json_data = json.dumps({k: v for k, v in data_buffer.items() if v is not None}, indent=4)
+
+    with socket_lock:
+        if client_socket is None:
+            init_socket()  # Attempt to connect if not already connected
+
+        if client_socket:
+            try:
                 client_socket.sendall(json_data.encode('utf-8'))
                 print(f"Sent data to server: {json_data}")
-        except Exception as e:
-            print(f"Failed to send data to server: {e}")
+            except (BrokenPipeError, ConnectionResetError) as e:
+                print(f"Connection lost. Attempting to reconnect: {e}")
+                client_socket.close()
+                client_socket = None  # Reset the socket to trigger reconnection next time
+        else:
+            print("No connection to server. Data not sent.")
 
 def read_serial_data(serial_port_gps='/dev/ttyS0', baudrate_gps=115200):
     """Read data from GPS serial port and update the data buffer."""
