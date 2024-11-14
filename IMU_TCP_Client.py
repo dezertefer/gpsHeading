@@ -35,6 +35,21 @@ buffer_lock = threading.Lock()
 server_ip = '127.0.0.1'  # Replace with the remote server's IP
 server_port = 13370      # Replace with the remote server's port
 
+client_socket = None
+socket_lock = threading.Lock()
+
+def init_socket():
+    """Initialize and connect the client socket to the server."""
+    global client_socket
+    try:
+        client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        client_socket.connect((server_ip, server_port))
+        print("Connection established with server.")
+    except Exception as e:
+        print(f"Error connecting to server: {e}")
+        client_socket = None
+
+
 def apply_sign_adjustments(data):
     """Apply optional negations to IMU fields based on configuration."""
     global original_imu_pitch, original_imu_roll, original_imu_heading
@@ -53,26 +68,27 @@ def apply_sign_adjustments(data):
             except ValueError:
                 print(f"Warning: Field {field} could not be converted to float for rounding.")
 
-def send_data_to_server():
-    """Send combined IMU data to the remote server, keeping the connection open."""
-    try:
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
-            client_socket.connect((server_ip, server_port))
-            print("Connection established with server.")
+def send_data_to_server(data_buffer):
+    """Send data to the server, keeping the connection open as long as possible."""
+    global client_socket
 
-            while True:
-                with buffer_lock:
-                    apply_sign_adjustments(data_buffer)
+    # Prepare JSON data, excluding fields that are None
+    json_data = json.dumps({k: v for k, v in data_buffer.items() if v is not None}, indent=4)
 
-                    json_data = json.dumps({k: v for k, v in data_buffer.items() if v is not None}, indent=4)
-                    client_socket.sendall(json_data.encode('utf-8'))
-                    print(f"Sent data to server: {json_data}")
+    with socket_lock:
+        if client_socket is None:
+            init_socket()  # Attempt to connect if not already connected
 
-                # Send data at intervals (e.g., every second)
-                time.sleep(1)
-
-    except Exception as e:
-        print(f"Error in connection or sending data: {e}")
+        if client_socket:
+            try:
+                client_socket.sendall(json_data.encode('utf-8'))
+                print(f"Sent data to server: {json_data}")
+            except (BrokenPipeError, ConnectionResetError) as e:
+                print(f"Connection lost. Attempting to reconnect: {e}")
+                client_socket.close()
+                client_socket = None  # Reset the socket to trigger reconnection next time
+        else:
+            print("No connection to server. Data not sent.")
 
 def read_serial_data(serial_port_imu='/dev/ttyAMA1', baudrate_imu=4800):
     """Read data from the IMU serial port and update the data buffer."""
