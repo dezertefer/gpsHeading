@@ -113,7 +113,7 @@ def read_serial_data(serial_port_imu='/dev/ttyAMA1', baudrate_imu=4800):
                             data_buffer["IMU_Temperature"] = imu_data['Temperature']
 
                 # Send data to the server periodically or after updates
-                send_data_to_server()
+                send_data_to_server(data_buffer)
 
     except serial.SerialException as e:
         print(f"Serial error: {e}")
