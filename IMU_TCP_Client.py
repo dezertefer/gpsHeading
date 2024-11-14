@@ -71,7 +71,7 @@ def apply_sign_adjustments(data):
 def send_data_to_server(data_buffer):
     """Send data to the server, keeping the connection open as long as possible."""
     global client_socket
-
+    apply_sign_adjustments(data_buffer)
     # Prepare JSON data, excluding fields that are None
     json_data = json.dumps({k: v for k, v in data_buffer.items() if v is not None}, indent=4)
 
