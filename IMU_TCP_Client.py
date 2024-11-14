@@ -54,22 +54,25 @@ def apply_sign_adjustments(data):
                 print(f"Warning: Field {field} could not be converted to float for rounding.")
 
 def send_data_to_server():
-    """Send IMU data to the remote server."""
-    with buffer_lock:
-        # Apply adjustments to IMU data fields
-        apply_sign_adjustments(data_buffer)
+    """Send combined IMU data to the remote server, keeping the connection open."""
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
+            client_socket.connect((server_ip, server_port))
+            print("Connection established with server.")
 
-        # Prepare JSON data, excluding fields that are None
-        json_data = json.dumps({k: v for k, v in data_buffer.items() if v is not None}, indent=4)
+            while True:
+                with buffer_lock:
+                    apply_offset_and_sign(data_buffer)
 
-        # Attempt to connect and send data to the server
-        try:
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
-                client_socket.connect((server_ip, server_port))
-                client_socket.sendall(json_data.encode('utf-8'))
-                print(f"Sent data to server: {json_data}")
-        except Exception as e:
-            print(f"Failed to send data to server: {e}")
+                    json_data = json.dumps({k: v for k, v in data_buffer.items() if v is not None}, indent=4)
+                    client_socket.sendall(json_data.encode('utf-8'))
+                    print(f"Sent data to server: {json_data}")
+
+                # Send data at intervals (e.g., every second)
+                time.sleep(1)
+
+    except Exception as e:
+        print(f"Error in connection or sending data: {e}")
 
 def read_serial_data(serial_port_imu='/dev/ttyAMA1', baudrate_imu=4800):
     """Read data from the IMU serial port and update the data buffer."""
