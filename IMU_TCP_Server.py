@@ -64,7 +64,7 @@ def broadcast_data():
     """Broadcast GPS data to all connected clients."""
     with buffer_lock:
         # Apply heading offset
-        apply_offset_to_heading(data_buffer)
+        apply_offset_and_sign(data_buffer)
 
         # Prepare JSON data, excluding fields that are None
         json_data = json.dumps({k: v for k, v in data_buffer.items() if v is not None}, indent=4)
