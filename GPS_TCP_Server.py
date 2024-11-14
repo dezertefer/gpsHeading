@@ -81,8 +81,14 @@ def broadcast_data():
             try:
                 client.sendall(json_data.encode('utf-8'))
                 print(f"Sent data to client: {client.getpeername()}")
-            except Exception as e:
+            except (OSError, ConnectionResetError) as e:
+                # Handle client disconnection
                 print(f"Error sending data to client {client.getpeername()}: {e}")
+                clients.remove(client)
+                client.close()
+            except Exception as e:
+                # Catch any other exceptions that may arise
+                print(f"Unexpected error with client {client.getpeername()}: {e}")
                 clients.remove(client)
                 client.close()
 
