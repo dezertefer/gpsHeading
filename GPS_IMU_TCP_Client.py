@@ -52,6 +52,21 @@ buffer_lock = threading.Lock()
 server_ip = '127.0.0.1'  # Replace with the remote server's IP
 server_port = 13370           # Replace with the remote server's port
 
+client_socket = None
+socket_lock = threading.Lock()
+
+def init_socket():
+    """Initialize and connect the client socket to the server."""
+    global client_socket
+    try:
+        client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        client_socket.connect((server_ip, server_port))
+        print("Connection established with server.")
+    except Exception as e:
+        print(f"Error connecting to server: {e}")
+        client_socket = None
+
+
 def apply_offset_and_sign(data):
     """Apply offset to GPS heading and optional negation to Roll, Pitch, and Yaw."""
     global original_heading, original_imu_pitch, original_imu_roll, original_imu_heading
@@ -88,23 +103,27 @@ def apply_offset_and_sign(data):
             except ValueError:
                 print(f"Warning: Field {field} could not be converted to float for rounding.")
 
-def send_data_to_server():
-    """Send combined IMU and GPS data to the remote server."""
-    with buffer_lock:
-        # Apply offset and optional negations to fields
-        apply_offset_and_sign(data_buffer)
+def send_data_to_server(data_buffer):
+    """Send data to the server, keeping the connection open as long as possible."""
+    global client_socket
+    apply_offset_and_sign(data_buffer)
+    # Prepare JSON data, excluding fields that are None
+    json_data = json.dumps({k: v for k, v in data_buffer.items() if v is not None}, indent=4)
 
-        # Prepare JSON data, excluding fields that are None
-        json_data = json.dumps({k: v for k, v in data_buffer.items() if v is not None}, indent=4)
+    with socket_lock:
+        if client_socket is None:
+            init_socket()  # Attempt to connect if not already connected
 
-        # Attempt to connect and send data to the server
-        try:
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
-                client_socket.connect((server_ip, server_port))
+        if client_socket:
+            try:
                 client_socket.sendall(json_data.encode('utf-8'))
                 print(f"Sent data to server: {json_data}")
-        except Exception as e:
-            print(f"Failed to send data to server: {e}")
+            except (BrokenPipeError, ConnectionResetError) as e:
+                print(f"Connection lost. Attempting to reconnect: {e}")
+                client_socket.close()
+                client_socket = None  # Reset the socket to trigger reconnection next time
+        else:
+            print("No connection to server. Data not sent.")
 
 def read_serial_data(serial_port_imu='/dev/ttyAMA1', serial_port_gps='/dev/ttyS0', baudrate_imu=4800, baudrate_gps=115200):
     """Read data from both IMU and GPS serial ports and update the data buffer."""
