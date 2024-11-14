@@ -137,7 +137,7 @@ def read_serial_data(serial_port_gps='/dev/ttyS0', baudrate_gps=115200):
                             buffer_gps = buffer_gps[1:]  # Shift buffer if header not found
 
                 # Attempt to send data to the server periodically or after updates
-                send_data_to_server()
+                send_data_to_server(data_buffer)
 
     except serial.SerialException as e:
         print(f"Serial error: {e}")
