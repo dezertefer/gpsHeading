@@ -62,7 +62,7 @@ def send_data_to_server():
 
             while True:
                 with buffer_lock:
-                    apply_offset_and_sign(data_buffer)
+                    apply_sign_adjustments(data_buffer)
 
                     json_data = json.dumps({k: v for k, v in data_buffer.items() if v is not None}, indent=4)
                     client_socket.sendall(json_data.encode('utf-8'))
