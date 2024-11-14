@@ -80,15 +80,15 @@ def broadcast_data():
         for client in clients[:]:  # Use a copy of the list to avoid modification during iteration
             try:
                 client.sendall(json_data.encode('utf-8'))
-                print(f"Sent data to client: {client.getpeername()}")
+                print(f"Sent data to client.")
             except (OSError, ConnectionResetError) as e:
-                # Handle client disconnection
-                print(f"Error sending data to client {client.getpeername()}: {e}")
+                # Handle client disconnection without calling getpeername
+                print("Error sending data to client. Removing client from list.")
                 clients.remove(client)
                 client.close()
             except Exception as e:
                 # Catch any other exceptions that may arise
-                print(f"Unexpected error with client {client.getpeername()}: {e}")
+                print("Unexpected error with client. Removing client from list.")
                 clients.remove(client)
                 client.close()
 
