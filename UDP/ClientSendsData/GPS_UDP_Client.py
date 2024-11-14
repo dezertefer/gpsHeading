@@ -10,6 +10,12 @@ FLAGS_CARR_SOLN_FIXED = 16   # Fixed solution
 FLAGS_CARR_SOLN_MASK = 0b00011000  # Mask for bits 3-4
 
 UBX_HEADER = b'\xb5\x62'  # UBX message header for u-blox GPS
+# Lock for synchronizing access to data_buffer and original_heading
+
+original_heading = None
+original_imu_pitch = None
+original_imu_roll = None
+original_imu_heading = None
 
 # Load configuration from config.json
 UDP_IP = "127.0.0.1"      # IP address of the server (adjust accordingly)
