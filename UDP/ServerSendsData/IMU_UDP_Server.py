@@ -38,8 +38,10 @@ buffer_lock = threading.Lock()
 # Configure UDP socket
 udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
-def apply_config_to_imu_data():
+def apply_config_to_imu_data(data):
     """Apply optional negation for IMU fields based on configuration."""
+    global original_imu_roll, original_imu_pitch, original_imu_heading
+    
     with buffer_lock:
         # Adjust each field based on config options
         data_buffer["IMU_Roll"] = -original_imu_roll if config.get("negate_roll", False) and original_imu_roll is not None else original_imu_roll
@@ -97,7 +99,7 @@ def read_imu_data(serial_port='/dev/ttyAMA1', baudrate=4800):
                     raw_message = ser.readline().decode('utf-8', errors='ignore').strip()
                     print("Received IMU message:", raw_message)
                     parse_imu_message(raw_message)
-                    apply_config_to_imu_data()
+                    apply_config_to_imu_data(data_buffer)
                     send_imu_data()
     except serial.SerialException as e:
         print(f"Serial error: {e}")
