@@ -159,7 +159,109 @@ def read_serial_data(serial_port_imu='/dev/ttyAMA1', serial_port_gps='/dev/ttyS0
     except serial.SerialException as e:
         print(f"Serial error: {e}")
 
-# Parsing functions (parse_message, parse_ubx_message, parse_ubx_navpvt, parse_ubx_navrelposned) remain the same as in your original code.
+def parse_message(message):
+    """Parse the IMU message and convert it to a dictionary."""
+    data = {
+        'Heading': None,
+        'Pitch': None,
+        'Roll': None,
+        'Temperature': None
+    }
+
+    global original_imu_pitch
+    global original_imu_roll
+    global original_imu_heading
+    
+    try:
+        # Remove the starting '$' and ending '*checksum' if present
+        if message.startswith('$') and '*' in message:
+            message = message[1:message.index('*')]
+
+        # Extract and convert each component
+        if 'C' in message:
+            c_index = message.find('C')
+            p_index = message.find('P', c_index)
+            if p_index != -1:
+                heading_str = message[c_index+1:p_index]
+                try:
+                    original_imu_heading = float(heading_str)
+                except ValueError:
+                    print(f"Error parsing heading value: {heading_str}")
+        if 'P' in message:
+            p_index = message.find('P')
+            r_index = message.find('R', p_index)
+            if r_index != -1:
+                pitch_str = message[p_index+1:r_index]
+                try:
+                    original_imu_pitch = float(pitch_str)
+                except ValueError:
+                    print(f"Error parsing pitch value: {pitch_str}")
+        if 'R' in message:
+            r_index = message.find('R')
+            t_index = message.find('T', r_index)
+            if t_index != -1:
+                roll_str = message[r_index+1:t_index]
+                try:
+                    original_imu_roll = float(roll_str)
+                except ValueError:
+                    print(f"Error parsing roll value: {roll_str}")
+        if 'T' in message:
+            t_index = message.find('T')
+            temp_str = message[t_index+1:]
+            try:
+                data['Temperature'] = float(temp_str)
+            except ValueError:
+                print(f"Error parsing temperature value: {temp_str}")
+
+        return data  # Return parsed data as a dictionary
+
+    except Exception as e:
+        print(f"Failed to parse message: {e}")
+        return None
+def parse_ubx_message(ubx_message):
+    """Parse relevant UBX message details and store in buffer."""
+    global original_heading
+    msg_class = ubx_message[2]
+    msg_id = ubx_message[3]
+    payload = ubx_message[6:-2]  # Exclude header and checksum
+
+    if msg_class == 0x01 and msg_id == 0x07:  # NavPVT (Position, Velocity, and Time solution)
+        parse_ubx_navpvt(payload)
+    elif msg_class == 0x01 and msg_id == 0x3C:  # NavRELPOSNED (Relative Positioning Information)
+        parse_ubx_navrelposned(payload)
+
+    # Broadcast combined data to clients
+    broadcast_data()
+
+def parse_ubx_navpvt(payload):
+    """Parse and store information from a UBX NavPVT message."""
+    with buffer_lock:
+        data_buffer["Timestamp"] = int.from_bytes(payload[0:4], byteorder='little')
+        data_buffer["Latitude"] = int.from_bytes(payload[28:32], byteorder='little', signed=True) * 1e-7
+        data_buffer["Longitude"] = int.from_bytes(payload[24:28], byteorder='little', signed=True) * 1e-7
+        data_buffer["Altitude"] = int.from_bytes(payload[32:36], byteorder='little', signed=True) * 0.001  # in meters
+
+def parse_ubx_navrelposned(payload):
+    """Parse and store information from a UBX NavRELPOSNED message."""
+    global original_heading
+    with buffer_lock:
+        data_buffer['Antenna_Distance'] = int.from_bytes(payload[20:24], 'little') * 0.01
+        original_heading = int.from_bytes(payload[24:28], byteorder='little', signed=True) * 1e-5  # in degrees
+
+        flags = int.from_bytes(payload[36:40], byteorder='little')
+        carr_soln_status = flags & FLAGS_CARR_SOLN_MASK  # Extract carrier solution bits
+
+        # Determine RTK fix quality
+        if carr_soln_status == FLAGS_CARR_SOLN_NONE:
+            rtk_fix_quality = "None"
+        elif carr_soln_status == FLAGS_CARR_SOLN_FLOAT:
+            rtk_fix_quality = "Float"
+        elif carr_soln_status == FLAGS_CARR_SOLN_FIXED:
+            rtk_fix_quality = "Fixed"
+        else:
+            rtk_fix_quality = "Unknown"
+
+        data_buffer["RTK_Fix_Quality"] = "N/A"
 
 if __name__ == "__main__":
     # Start reading serial data in the main thread
