@@ -37,6 +37,7 @@ server_ip = '127.0.0.1'  # Replace with the remote server's IP
 server_port = 13370      # Replace with the remote server's port
 
 client_socket = None
+original_heading = None
 socket_lock = threading.Lock()
 
 # Lock for synchronizing access to data_buffer
@@ -55,8 +56,7 @@ def init_socket():
 
 def apply_offset_and_sign(data):
     """Apply offset to GPS heading and optional negation to Roll, Pitch, and Yaw."""
-    global original_heading, original_imu_pitch, original_imu_roll, original_imu_heading
-
+    global original_heading
     # Apply offset to heading based on original_heading
     if original_heading is not None:
         adjusted_heading = (original_heading + config.get("heading_offset", 0)) % 360.0
@@ -163,9 +163,10 @@ def parse_ubx_navpvt(payload):
 
 def parse_ubx_navrelposned(payload):
     """Parse and store information from a UBX NavRELPOSNED message."""
+    global original_heading
     with buffer_lock:
         data_buffer['Antenna_Distance'] = int.from_bytes(payload[20:24], 'little') * 0.01
-        data_buffer["Heading"] = int.from_bytes(payload[24:28], byteorder='little', signed=True) * 1e-5  # in degrees
+        original_heading = int.from_bytes(payload[24:28], byteorder='little', signed=True) * 1e-5  # in degrees
 
         flags = int.from_bytes(payload[36:40], byteorder='little')
         carr_soln_status = flags & FLAGS_CARR_SOLN_MASK  # Extract carrier solution bits
