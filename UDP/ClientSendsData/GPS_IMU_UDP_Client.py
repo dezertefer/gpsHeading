@@ -53,6 +53,10 @@ data_buffer = {
 # Lock for synchronizing access to data_buffer and original_heading
 buffer_lock = threading.Lock()
 
+original_heading = None
+original_imu_pitch = None
+original_imu_roll = None
+original_imu_heading = None
 # Create UDP socket
 udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
