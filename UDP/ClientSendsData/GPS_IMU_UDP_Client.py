@@ -114,8 +114,6 @@ def broadcast_data():
         udp_socket.sendto(json_data.encode('utf-8'), (UDP_IP, UDP_PORT))
         print(f"Sent data to server at {UDP_IP}:{UDP_PORT}")
 
-
-
 def parse_message(message):
     """Parse the IMU message and convert it to a dictionary."""
     data = {
@@ -174,6 +172,7 @@ def parse_message(message):
         print(f"Failed to parse message: {e}")
         return None
 
+
 def read_serial_data(serial_port_imu='/dev/ttyAMA1', serial_port_gps='/dev/ttyS0', baudrate_imu=4800, baudrate_gps=115200):
     """Read data from both IMU and GPS serial ports and update the data buffer."""
     try:
@@ -205,23 +204,72 @@ def read_serial_data(serial_port_imu='/dev/ttyAMA1', serial_port_gps='/dev/ttyS0
                 raw_data_gps = ser_gps.read(ser_gps.in_waiting or 1)
                 if raw_data_gps:
                     buffer_gps += raw_data_gps
-                    if len(buffer_gps) > 4 and buffer_gps[:2] == UBX_HEADER:
-                        if len(buffer_gps) >= 60:  # Expecting 60 bytes message (e.g., NAV-POSLLH)
-                            try:
-                                gps_data = parse_ubx_message(buffer_gps)
-                                with buffer_lock:
-                                    data_buffer["Latitude"] = gps_data["Latitude"]
-                                    data_buffer["Longitude"] = gps_data["Longitude"]
-                                    data_buffer["Altitude"] = gps_data["Altitude"]
-                            except Exception as e:
-                                print(f"Error parsing GPS data: {e}")
-                            buffer_gps = b''  # Reset buffer after processing
+                    while len(buffer_gps) >= 6:  # Minimum UBX message size
+                        if buffer_gps.startswith(UBX_HEADER):
+                            msg_class = buffer_gps[2]
+                            msg_id = buffer_gps[3]
+                            length = int.from_bytes(buffer_gps[4:6], byteorder='little')
+                            total_length = 6 + length + 2  # Header + payload + checksum
 
-                # Send data to the server every 0.1 seconds
+                            if len(buffer_gps) >= total_length:
+                                ubx_message = buffer_gps[:total_length]
+                                buffer_gps = buffer_gps[total_length:]
+                                parse_ubx_message(ubx_message)
+                            else:
+                                break
+                        else:
+                            buffer_gps = buffer_gps[1:]  # Shift buffer if header not found
+
+                # Attempt to broadcast data periodically or after updates
                 broadcast_data()
 
     except serial.SerialException as e:
-        print(f"Error opening serial ports: {e}")
+        print(f"Serial error: {e}")
+
+def parse_ubx_message(ubx_message):
+    """Parse relevant UBX message details and store in buffer."""
+    global original_heading
+    msg_class = ubx_message[2]
+    msg_id = ubx_message[3]
+    payload = ubx_message[6:-2]  # Exclude header and checksum
+
+    if msg_class == 0x01 and msg_id == 0x07:  # NavPVT (Position, Velocity, and Time solution)
+        parse_ubx_navpvt(payload)
+    elif msg_class == 0x01 and msg_id == 0x3C:  # NavRELPOSNED (Relative Positioning Information)
+        parse_ubx_navrelposned(payload)
+
+    # Broadcast combined data to clients
+    broadcast_data()
+
+def parse_ubx_navpvt(payload):
+    """Parse and store information from a UBX NavPVT message."""
+    with buffer_lock:
+        data_buffer["Timestamp"] = int.from_bytes(payload[0:4], byteorder='little')
+        data_buffer["Latitude"] = int.from_bytes(payload[28:32], byteorder='little', signed=True) * 1e-7
+        data_buffer["Longitude"] = int.from_bytes(payload[24:28], byteorder='little', signed=True) * 1e-7
+        data_buffer["Altitude"] = int.from_bytes(payload[32:36], byteorder='little', signed=True) * 0.001  # in meters
+
+def parse_ubx_navrelposned(payload):
+    """Parse and store information from a UBX NavRELPOSNED message."""
+    global original_heading
+    with buffer_lock:
+        data_buffer['Antenna_Distance'] = int.from_bytes(payload[20:24], 'little') * 0.01
+        original_heading = int.from_bytes(payload[24:28], byteorder='little', signed=True) * 1e-5  # in degrees
+
+        flags = int.from_bytes(payload[36:40], byteorder='little')
+        carr_soln_status = flags & FLAGS_CARR_SOLN_MASK  # Extract carrier solution bits
+
+        # Determine RTK fix quality
+        if carr_soln_status == FLAGS_CARR_SOLN_NONE:
+            rtk_fix_quality = "None"
+        elif carr_soln_status == FLAGS_CARR_SOLN_FLOAT:
+            rtk_fix_quality = "Float"
+        elif carr_soln_status == FLAGS_CARR_SOLN_FIXED:
+            rtk_fix_quality = "Fixed"
+        else:
+            rtk_fix_quality = "Unknown"
+
+        data_buffer["RTK_Fix_Quality"] = "N/A"
 
 # Start reading data and broadcasting to the server
 read_serial_data()
