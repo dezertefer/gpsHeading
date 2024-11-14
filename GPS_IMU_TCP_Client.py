@@ -250,7 +250,7 @@ def parse_ubx_message(ubx_message):
         parse_ubx_navrelposned(payload)
 
     # Broadcast combined data to clients
-    send_data_to_server()
+    send_data_to_server(data_buffer)
 
 def parse_ubx_navpvt(payload):
     """Parse and store information from a UBX NavPVT message."""
