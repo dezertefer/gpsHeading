@@ -76,6 +76,7 @@ def apply_offset_and_sign(data):
         data["IMU_Heading"] = f"{adjusted_imu_heading:.1f}"
     else:
         data["IMU_Heading"] = None
+
     # Apply optional negation for IMU fields
     data["IMU_Roll"] = -original_imu_roll if config.get("negate_roll", False) and original_imu_roll is not None else original_imu_roll
     data["IMU_Pitch"] = -original_imu_pitch if config.get("negate_pitch", False) and original_imu_pitch is not None else original_imu_pitch
@@ -113,7 +114,7 @@ def broadcast_data():
         # Prepare JSON data, excluding fields that are None
         json_data = json.dumps({k: v for k, v in data_buffer.items() if v is not None}, indent=4)
         
-        print(f"Broadcasting data: {json_data}")  # Debugging line to check data being broadcasted
+        #print(f"Broadcasting data: {json_data}")  # Debugging line to check data being broadcasted
 
         # Broadcast to all clients
         for client in clients[:]:  # Use a copy of the list to avoid modification during iteration
@@ -237,6 +238,10 @@ def adjust_imu_heading_offset():
                     imu_heading_offset += difference
                     imu_heading_offset %= 360.0  # Keep within 0-360
                     print(f"Updated IMU heading offset: {imu_heading_offset:.1f} degrees")
+                    print(f"Original GPS Heading: {original_heading}")
+                    print(f"Original IMU Heading: {original_imu_heading}")
+                    print(f"Current IMU Offset: {imu_heading_offset}")
+                    print(f"Heading Difference: {difference}")
 
 
 def read_serial_data(serial_port_imu='/dev/ttyAMA1', serial_port_gps='/dev/ttyS0', baudrate_imu=4800, baudrate_gps=115200):
