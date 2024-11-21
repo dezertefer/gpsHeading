@@ -113,7 +113,7 @@ def broadcast_data():
         # Prepare JSON data, excluding fields that are None
         json_data = json.dumps({k: v for k, v in data_buffer.items() if v is not None}, indent=4)
         
-        #print(f"Broadcasting data: {json_data}")  # Debugging line to check data being broadcasted
+        print(f"Broadcasting data: {json_data}")  # Debugging line to check data being broadcasted
 
         # Broadcast to all clients
         for client in clients[:]:  # Use a copy of the list to avoid modification during iteration
