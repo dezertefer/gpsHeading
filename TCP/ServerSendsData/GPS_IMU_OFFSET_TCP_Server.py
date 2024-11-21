@@ -234,7 +234,7 @@ def adjust_imu_heading_offset():
                 # Calculate the difference
                 print(f"Original IMU Heading: {original_imu_heading}")
                 difference = (gps_heading - original_imu_heading) % 360.0
-                print(f"Original GPS Heading: {difference}")
+                print(f"Original difference: {difference}")
                 
                 #if difference > 180.0:
                 #    difference -= 360.0
