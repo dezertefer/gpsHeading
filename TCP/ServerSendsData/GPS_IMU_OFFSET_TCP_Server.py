@@ -226,6 +226,7 @@ def adjust_imu_heading_offset():
     global imu_heading_offset, original_imu_heading, original_heading
 
     while True:
+        time.sleep(30)  # Adjust every 30 seconds
         with buffer_lock:
             if original_imu_heading is not None and original_heading is not None:
                 # Normalize headings (if necessary)
@@ -249,7 +250,6 @@ def adjust_imu_heading_offset():
                 if abs(difference) > 0.1:
                     imu_heading_offset = difference
                     print(f"Updated IMU heading offset: {imu_heading_offset:.1f} degrees")
-                    time.sleep(30)  # Adjust every 30 seconds
                 else:
                     print(f"No significant adjustment needed. Difference: {difference:.7f}")
 
@@ -355,11 +355,15 @@ def parse_ubx_navrelposned(payload):
 
 if __name__ == "__main__":
     # Start the TCP server in a separate thread
+    
+    
     server_thread = threading.Thread(target=start_tcp_server, daemon=True)
     server_thread.start()
 
+    read_serial_data()
+    
     offset_thread = threading.Thread(target=adjust_imu_heading_offset, daemon=True)
     offset_thread.start()
     
     # Start reading serial data in the main thread
-    read_serial_data()
+    
