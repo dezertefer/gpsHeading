@@ -228,21 +228,21 @@ def adjust_imu_heading_offset():
         with buffer_lock:
             if original_imu_heading is not None and original_heading is not None:
                 # Normalize values
-                imu_corrected_heading = (original_imu_heading + imu_heading_offset) % 360.0
+                #imu_corrected_heading = (original_imu_heading + imu_heading_offset) % 360.0
                 gps_heading = original_heading % 360.0
                 
                 # Calculate the difference
-                difference = (gps_heading - imu_corrected_heading + 360.0) % 360.0
-                if difference > 180.0:
-                    difference -= 360.0
+                difference = (gps_heading - original_imu_heading + 360.0) % 360.0
+                #if difference > 180.0:
+                #    difference -= 360.0
 
                 # Avoid floating-point inaccuracies
                 difference = round(difference, 7)
 
                 # Update offset if the difference exceeds a threshold
                 if abs(difference) > 0.1:
-                    imu_heading_offset += difference
-                    imu_heading_offset %= 360.0  # Keep within [0, 360)
+                    imu_heading_offset = difference
+                    #imu_heading_offset %= 360.0  # Keep within [0, 360)
                     print(f"Updated IMU heading offset: {imu_heading_offset:.1f} degrees")
                     print(f"Original GPS Heading: {original_heading}")
                     print(f"Original IMU Heading: {original_imu_heading}")
