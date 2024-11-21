@@ -111,7 +111,7 @@ def broadcast_data():
         # Prepare JSON data, excluding fields that are None
         json_data = json.dumps({k: v for k, v in data_buffer.items() if v is not None}, indent=4)
         
-        print(f"Broadcasting data: {json_data}")  # Debugging line to check data being broadcasted
+        #print(f"Broadcasting data: {json_data}")  # Debugging line to check data being broadcasted
 
         # Broadcast to all clients
         for client in clients[:]:  # Use a copy of the list to avoid modification during iteration
@@ -221,7 +221,7 @@ def adjust_imu_heading_offset():
     global imu_heading_offset, original_imu_heading, original_heading
 
     while True:
-        time.sleep(30)  # Wait for 30 seconds
+        time.sleep(1)  # Wait for 30 seconds
         with buffer_lock:
             if original_imu_heading is not None and original_heading is not None:
                 difference = (original_heading - (original_imu_heading + imu_heading_offset)) % 360.0
