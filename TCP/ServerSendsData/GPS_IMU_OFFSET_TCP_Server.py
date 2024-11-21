@@ -226,7 +226,6 @@ def adjust_imu_heading_offset():
     global imu_heading_offset, original_imu_heading, original_heading
 
     while True:
-        time.sleep(1)  # Adjust every 30 seconds
         with buffer_lock:
             if original_imu_heading is not None and original_heading is not None:
                 # Normalize headings (if necessary)
@@ -250,6 +249,7 @@ def adjust_imu_heading_offset():
                 if abs(difference) > 0.1:
                     imu_heading_offset = difference
                     print(f"Updated IMU heading offset: {imu_heading_offset:.1f} degrees")
+                    time.sleep(30)  # Adjust every 30 seconds
                 else:
                     print(f"No significant adjustment needed. Difference: {difference:.7f}")
 
