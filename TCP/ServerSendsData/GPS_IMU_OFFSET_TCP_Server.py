@@ -114,7 +114,7 @@ def broadcast_data():
         # Prepare JSON data, excluding fields that are None
         json_data = json.dumps({k: v for k, v in data_buffer.items() if v is not None}, indent=4)
         
-        #print(f"Broadcasting data: {json_data}")  # Debugging line to check data being broadcasted
+        print(f"Broadcasting data: {json_data}")  # Debugging line to check data being broadcasted
 
         # Broadcast to all clients
         for client in clients[:]:  # Use a copy of the list to avoid modification during iteration
@@ -231,22 +231,22 @@ def adjust_imu_heading_offset():
                 gps_heading = original_heading % 360.0
                 imu_heading = original_imu_heading % 360.0
 
-                print(f"Original GPS Heading: {gps_heading}")
-                print(f"Original IMU Heading: {imu_heading}")
+                #print(f"Original GPS Heading: {gps_heading}")
+                #print(f"Original IMU Heading: {imu_heading}")
 
                 # Compute the difference and normalize to [-180, 180]
                 difference = (gps_heading - imu_heading) % 360.0
                 if difference > 180.0:
                     difference -= 360.0
 
-                print(f"Normalized difference: {difference}")
+               # print(f"Normalized difference: {difference}")
 
                 # Avoid floating-point inaccuracies
                 difference = round(difference, 7)
 
                 # Update offset if the difference exceeds a threshold
                 if abs(difference) > 0.1:
-                    imu_heading_offset = (imu_heading_offset + difference) % 360.0
+                    imu_heading_offset = difference
                     print(f"Updated IMU heading offset: {imu_heading_offset:.1f} degrees")
                 else:
                     print(f"No significant adjustment needed. Difference: {difference:.7f}")
