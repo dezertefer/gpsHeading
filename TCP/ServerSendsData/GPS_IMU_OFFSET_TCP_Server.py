@@ -224,24 +224,33 @@ def adjust_imu_heading_offset():
     global imu_heading_offset, original_imu_heading, original_heading
 
     while True:
-        time.sleep(1)  # Wait for 30 seconds
+        time.sleep(30)  # Adjust every 30 seconds
         with buffer_lock:
             if original_imu_heading is not None and original_heading is not None:
-                difference = (original_heading - (original_imu_heading + imu_heading_offset)) % 360.0
+                # Normalize values
+                imu_corrected_heading = (original_imu_heading + imu_heading_offset) % 360.0
+                gps_heading = original_heading % 360.0
+                
+                # Calculate the difference
+                difference = (gps_heading - imu_corrected_heading + 360.0) % 360.0
                 if difference > 180.0:
                     difference -= 360.0
-                elif difference < -180.0:
-                    difference += 360.0
 
-                # Update offset if difference exceeds 0.1 degrees
+                # Avoid floating-point inaccuracies
+                difference = round(difference, 7)
+
+                # Update offset if the difference exceeds a threshold
                 if abs(difference) > 0.1:
                     imu_heading_offset += difference
-                    imu_heading_offset %= 360.0  # Keep within 0-360
+                    imu_heading_offset %= 360.0  # Keep within [0, 360)
                     print(f"Updated IMU heading offset: {imu_heading_offset:.1f} degrees")
                     print(f"Original GPS Heading: {original_heading}")
                     print(f"Original IMU Heading: {original_imu_heading}")
                     print(f"Current IMU Offset: {imu_heading_offset}")
-                    print(f"Heading Difference: {difference}")
+                    print(f"Heading Difference: {difference:.7f}")
+                else:
+                    print(f"No significant adjustment needed. Difference: {difference:.7f}")
+
 
 
 def read_serial_data(serial_port_imu='/dev/ttyAMA1', serial_port_gps='/dev/ttyS0', baudrate_imu=4800, baudrate_gps=115200):
