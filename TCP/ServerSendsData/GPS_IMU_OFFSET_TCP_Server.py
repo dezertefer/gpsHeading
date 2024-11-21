@@ -227,8 +227,10 @@ def adjust_imu_heading_offset():
         with buffer_lock:
             if original_imu_heading is not None and original_heading is not None:
                 difference = (original_heading - (original_imu_heading + imu_heading_offset)) % 360.0
-                #if difference > 180.0:  # Normalize to [-180, 180]
-                #difference -= 360.0
+                if difference > 180.0:
+                    difference -= 360.0
+                elif difference < -180.0:
+                    difference += 360.0
 
                 # Update offset if difference exceeds 0.1 degrees
                 if abs(difference) > 0.1:
