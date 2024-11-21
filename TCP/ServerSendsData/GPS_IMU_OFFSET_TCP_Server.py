@@ -2,7 +2,6 @@ import serial
 import socket
 import json
 import threading
-import time
 
 # Constants for carrier solution
 FLAGS_CARR_SOLN_NONE = 0     # No carrier phase range solution
@@ -18,10 +17,20 @@ try:
         config = json.load(config_file)
 except FileNotFoundError:
     print("config.json not found. Using default configuration.")
-    config = {}
+    config = {
+        "heading_offset": 0,
+        "negate_roll": False,
+        "negate_pitch": False,
+        "negate_yaw": False
+    }
 except json.JSONDecodeError:
     print("Error decoding config.json. Using default configuration.")
-    config = {}
+    config = {
+        "heading_offset": 0,
+        "negate_roll": False,
+        "negate_pitch": False,
+        "negate_yaw": False
+    }
 
 # Configure data buffer with default values
 data_buffer = {
@@ -38,53 +47,72 @@ data_buffer = {
     "IMU_Temperature": None
 }
 
-# IMU offset value
-imu_heading_offset = 0.0
-
 # List to store client connections
 clients = []
-# Original heading values for calculations
+# original_heading is an internal variable, not stored in data_buffer
 original_heading = None
+original_imu_pitch = None
+original_imu_roll = None
 original_imu_heading = None
 
-# Lock for synchronizing access to data_buffer and offsets
+# Lock for synchronizing access to data_buffer and original_heading
 buffer_lock = threading.Lock()
 
 def apply_offset_and_sign(data):
-    """Apply offset to GPS heading and optional negation to IMU fields."""
-    global imu_heading_offset, original_imu_heading
+    """Apply offset to GPS heading and optional negation to Roll, Pitch, and Yaw."""
+    global original_heading, original_imu_pitch, original_imu_roll, original_imu_heading
 
-    # Apply offset to IMU heading
-    if original_imu_heading is not None:
-        adjusted_heading = (original_imu_heading + imu_heading_offset) % 360.0
-        data["IMU_Heading"] = f"{adjusted_heading:.1f}"
+    # Apply offset to heading based on original_heading
+    if original_heading is not None:
+        adjusted_heading = (original_heading + config.get("heading_offset", 0)) % 360.0
+        data["Heading"] = adjusted_heading
     else:
-        data["IMU_Heading"] = None
+        data["Heading"] = None
 
-    # Round other relevant fields to one decimal place
-    fields_to_round = ["Latitude", "Longitude", "Altitude", "Heading", 
-                       "IMU_Pitch", "IMU_Roll", "IMU_Temperature"]
+    # Apply optional negation for IMU fields
+    data["IMU_Roll"] = -original_imu_roll if config.get("negate_roll", False) and original_imu_roll is not None else original_imu_roll
+    data["IMU_Pitch"] = -original_imu_pitch if config.get("negate_pitch", False) and original_imu_pitch is not None else original_imu_pitch
+    data["IMU_Heading"] = -original_imu_heading if config.get("negate_yaw", False) and original_imu_heading is not None else original_imu_heading
 
-    for field in fields_to_round:
+    # Round and format each relevant field to seven decimal places as a string
+    fields_to_round_seven = ["Latitude", "Longitude", "Altitude", "Heading", "Antenna_Distance", 
+                       "IMU_Heading", "IMU_Pitch", "IMU_Roll", "IMU_Temperature"]
+
+    for field in fields_to_round_seven:
+        if data[field] is not None:
+            try:
+                data[field] = f"{float(data[field]):.7f}"
+            except ValueError:
+                print(f"Warning: Field {field} could not be converted to float for rounding.")
+    
+    fields_to_round_one = ["Altitude", "Heading", "Antenna_Distance", 
+                       "IMU_Heading", "IMU_Pitch", "IMU_Roll", "IMU_Temperature"]
+                   
+    for field in fields_to_round_one:
         if data[field] is not None:
             try:
                 data[field] = f"{float(data[field]):.1f}"
             except ValueError:
                 print(f"Warning: Field {field} could not be converted to float for rounding.")
 
+
+
 def broadcast_data():
     """Broadcast combined IMU and GPS data to all connected clients."""
     with buffer_lock:
+        # Apply offset and optional negations to all available fields
         apply_offset_and_sign(data_buffer)
 
         # Prepare JSON data, excluding fields that are None
         json_data = json.dumps({k: v for k, v in data_buffer.items() if v is not None}, indent=4)
+        
+        print(f"Broadcasting data: {json_data}")  # Debugging line to check data being broadcasted
 
-        print(f"Broadcasting data: {json_data}")
-
-        for client in clients[:]:  # Use a copy to avoid issues while iterating
+        # Broadcast to all clients
+        for client in clients[:]:  # Use a copy of the list to avoid modification during iteration
             try:
                 client.sendall(json_data.encode('utf-8'))
+                print(f"Sent data to client: {client.getpeername()}")
             except Exception as e:
                 print(f"Error sending data to client {client.getpeername()}: {e}")
                 clients.remove(client)
@@ -96,6 +124,7 @@ def handle_client(client_socket, client_address):
         print(f"New client connected: {client_address}")
         clients.append(client_socket)
         while True:
+            # Keep the connection open
             threading.Event().wait(1)
     except Exception as e:
         print(f"Client connection error ({client_address}): {e}")
@@ -114,9 +143,13 @@ def start_tcp_server(host='0.0.0.0', port=13370):
     print(f"TCP Server listening on {host}:{port}...")
 
     while True:
-        client_socket, client_address = server_socket.accept()
-        client_thread = threading.Thread(target=handle_client, args=(client_socket, client_address), daemon=True)
-        client_thread.start()
+        try:
+            client_socket, client_address = server_socket.accept()
+            # Start a new thread to handle the client
+            client_thread = threading.Thread(target=handle_client, args=(client_socket, client_address), daemon=True)
+            client_thread.start()
+        except Exception as e:
+            print(f"Error accepting new client: {e}")
 
 def parse_message(message):
     """Parse the IMU message and convert it to a dictionary."""
@@ -195,6 +228,7 @@ def adjust_imu_heading_offset():
                     imu_heading_offset += difference
                     imu_heading_offset %= 360.0  # Keep within 0-360
                     print(f"Updated IMU heading offset: {imu_heading_offset:.1f} degrees")
+
 
 def read_serial_data(serial_port_imu='/dev/ttyAMA1', serial_port_gps='/dev/ttyS0', baudrate_imu=4800, baudrate_gps=115200):
     """Read data from both IMU and GPS serial ports and update the data buffer."""
@@ -294,12 +328,13 @@ def parse_ubx_navrelposned(payload):
 
         data_buffer["RTK_Fix_Quality"] = "N/A"
 
-
 if __name__ == "__main__":
+    # Start the TCP server in a separate thread
     server_thread = threading.Thread(target=start_tcp_server, daemon=True)
     server_thread.start()
 
     offset_thread = threading.Thread(target=adjust_imu_heading_offset, daemon=True)
     offset_thread.start()
-
+    
+    # Start reading serial data in the main thread
     read_serial_data()
