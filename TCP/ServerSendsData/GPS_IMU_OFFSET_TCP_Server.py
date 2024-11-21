@@ -2,6 +2,7 @@ import serial
 import socket
 import json
 import threading
+import time
 
 # Constants for carrier solution
 FLAGS_CARR_SOLN_NONE = 0     # No carrier phase range solution
