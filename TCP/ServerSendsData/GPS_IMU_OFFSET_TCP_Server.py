@@ -258,7 +258,7 @@ def parse_ubx_navrelposned(payload):
     global original_heading
     with buffer_lock:
         original_heading = int.from_bytes(payload[24:28], byteorder='little', signed=True) * 1e-5
-        data_buffer['RTK_Fix_Quality'] = "Fixed"
+        data_buffer['RTK_Fix_Quality'] = "None"
 
 if __name__ == "__main__":
     server_thread = threading.Thread(target=start_tcp_server, daemon=True)
