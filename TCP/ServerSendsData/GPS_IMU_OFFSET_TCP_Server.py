@@ -55,7 +55,7 @@ original_heading = None
 original_imu_pitch = None
 original_imu_roll = None
 original_imu_heading = None
-imu_heading_offset = None
+imu_heading_offset = 0.0
 
 # Lock for synchronizing access to data_buffer and original_heading
 buffer_lock = threading.Lock()
@@ -226,35 +226,32 @@ def adjust_imu_heading_offset():
     global imu_heading_offset, original_imu_heading, original_heading
 
     while True:
-        if imu_heading_offset is None:
-            print(f"IMU OFFSET IS 0")
-        else:
-            with buffer_lock:
-                if original_imu_heading is not None and original_heading is not None:
-                    # Normalize headings (if necessary)
-                    gps_heading = original_heading % 360.0
-                    imu_heading = original_imu_heading % 360.0
-    
-                    #print(f"Original GPS Heading: {gps_heading}")
-                    #print(f"Original IMU Heading: {imu_heading}")
-    
-                    # Compute the difference and normalize to [-180, 180]
-                    difference = (gps_heading - imu_heading) % 360.0
-                    if difference > 180.0:
-                        difference -= 360.0
-    
-                   # print(f"Normalized difference: {difference}")
-    
-                    # Avoid floating-point inaccuracies
-                    difference = round(difference, 7)
-    
-                    # Update offset if the difference exceeds a threshold
-                    if abs(difference) > 0.1:
-                        imu_heading_offset = difference
-                        print(f"Updated IMU heading offset: {imu_heading_offset:.1f} degrees")
-                    else:
-                        print(f"No significant adjustment needed. Difference: {difference:.7f}")
-            time.sleep(30)  # Adjust every 30 seconds
+        with buffer_lock:
+            if original_imu_heading is not None and original_heading is not None:
+                # Normalize headings (if necessary)
+                gps_heading = original_heading % 360.0
+                imu_heading = original_imu_heading % 360.0
+
+                #print(f"Original GPS Heading: {gps_heading}")
+                #print(f"Original IMU Heading: {imu_heading}")
+
+                # Compute the difference and normalize to [-180, 180]
+                difference = (gps_heading - imu_heading) % 360.0
+                if difference > 180.0:
+                    difference -= 360.0
+
+               # print(f"Normalized difference: {difference}")
+
+                # Avoid floating-point inaccuracies
+                difference = round(difference, 7)
+
+                # Update offset if the difference exceeds a threshold
+                if abs(difference) > 0.1:
+                    imu_heading_offset = difference
+                    print(f"Updated IMU heading offset: {imu_heading_offset:.1f} degrees")
+                else:
+                    print(f"No significant adjustment needed. Difference: {difference:.7f}")
+        time.sleep(30)  # Adjust every 30 seconds
 
 
 
