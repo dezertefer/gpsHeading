@@ -226,10 +226,7 @@ def adjust_imu_heading_offset():
     global imu_heading_offset, original_imu_heading, original_heading
 
     while True:
-        if imu_heading_offset is 0.0:
-            time.sleep(1)  # Adjust every 30 seconds
-        else:
-            time.sleep(5)
+        time.sleep(1)
         with buffer_lock:
             if original_imu_heading is not None and original_heading is not None:
                 # Normalize headings (if necessary)
