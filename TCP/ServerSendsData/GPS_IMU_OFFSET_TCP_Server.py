@@ -55,6 +55,7 @@ original_heading = None
 original_imu_pitch = None
 original_imu_roll = None
 original_imu_heading = None
+imu_heading_offset = 0.0
 
 # Lock for synchronizing access to data_buffer and original_heading
 buffer_lock = threading.Lock()
