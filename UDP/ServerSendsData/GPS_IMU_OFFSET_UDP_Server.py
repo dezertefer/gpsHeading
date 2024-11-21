@@ -2,6 +2,7 @@ import serial
 import socket
 import json
 import threading
+import time
 
 # Constants for carrier solution
 FLAGS_CARR_SOLN_NONE = 0     # No carrier phase range solution
@@ -200,7 +201,7 @@ def adjust_imu_heading_offset():
         if imu_heading_offset is 0.0:
             time.sleep(1)
         else:
-            time.sleep(1)
+            time.sleep(30)
         with buffer_lock:
             if original_imu_heading is not None and original_heading is not None:
                 # Normalize headings (if necessary)
