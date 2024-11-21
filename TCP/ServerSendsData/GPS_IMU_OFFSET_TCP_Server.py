@@ -224,7 +224,7 @@ def adjust_imu_heading_offset():
     global imu_heading_offset, original_imu_heading, original_heading
 
     while True:
-        time.sleep(30)  # Adjust every 30 seconds
+        time.sleep(1)  # Adjust every 30 seconds
         with buffer_lock:
             if original_imu_heading is not None and original_heading is not None:
                 # Normalize values
@@ -269,7 +269,7 @@ def read_serial_data(serial_port_imu='/dev/ttyAMA1', serial_port_gps='/dev/ttyS0
                 # Read IMU data
                 if ser_imu.in_waiting > 0:
                     raw_message_imu = ser_imu.readline().decode('utf-8', errors='ignore').strip()
-                    print("Received IMU message:", raw_message_imu)
+                    #print("Received IMU message:", raw_message_imu)
 
                     # Parse the IMU message and store data
                     imu_data = parse_message(raw_message_imu)
