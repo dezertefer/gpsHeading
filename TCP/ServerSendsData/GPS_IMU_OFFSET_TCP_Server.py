@@ -229,10 +229,10 @@ def adjust_imu_heading_offset():
             if original_imu_heading is not None and original_heading is not None:
                 # Normalize values
                 #imu_corrected_heading = (original_imu_heading + imu_heading_offset) % 360.0
-                gps_heading = original_heading % 360.0
+                gps_heading = original_heading
                 
                 # Calculate the difference
-                difference = (gps_heading - original_imu_heading + 360.0) % 360.0
+                difference = (gps_heading - original_imu_heading) % 360.0
                 #if difference > 180.0:
                 #    difference -= 360.0
 
