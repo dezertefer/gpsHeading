@@ -55,7 +55,7 @@ original_heading = None
 original_imu_pitch = None
 original_imu_roll = None
 original_imu_heading = None
-imu_heading_offset = 0.0
+imu_heading_offset = None
 
 # Lock for synchronizing access to data_buffer and original_heading
 buffer_lock = threading.Lock()
@@ -226,10 +226,9 @@ def adjust_imu_heading_offset():
     global imu_heading_offset, original_imu_heading, original_heading
 
     while True:
-        if imu_heading_offset is 0.0:
+        if imu_heading_offset is None:
             print(f"IMU OFFSET IS 0")
         else:
-            time.sleep(30)  # Adjust every 30 seconds
             with buffer_lock:
                 if original_imu_heading is not None and original_heading is not None:
                     # Normalize headings (if necessary)
@@ -255,6 +254,7 @@ def adjust_imu_heading_offset():
                         print(f"Updated IMU heading offset: {imu_heading_offset:.1f} degrees")
                     else:
                         print(f"No significant adjustment needed. Difference: {difference:.7f}")
+            time.sleep(30)  # Adjust every 30 seconds
 
 
 
