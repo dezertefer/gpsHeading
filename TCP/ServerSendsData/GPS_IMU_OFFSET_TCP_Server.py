@@ -73,7 +73,7 @@ def apply_offset_and_sign(data):
 
     if original_imu_heading is not None:
         adjusted_imu_heading = (original_imu_heading + imu_heading_offset) % 360.0
-        data["IMU_Heading"] = f"{adjusted_heading:.1f}"
+        data["IMU_Heading"] = f"{adjusted_imu_heading:.1f}"
     else:
         data["IMU_Heading"] = None
     # Apply optional negation for IMU fields
