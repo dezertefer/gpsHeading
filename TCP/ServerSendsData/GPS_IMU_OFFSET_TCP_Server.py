@@ -226,7 +226,7 @@ def adjust_imu_heading_offset():
     global imu_heading_offset, original_imu_heading, original_heading
 
     while True:
-        if imu_heading_offset = 0.0:
+        if imu_heading_offset is 0.0:
             print(f"IMU OFFSET IS 0")
         else:
             time.sleep(30)  # Adjust every 30 seconds
