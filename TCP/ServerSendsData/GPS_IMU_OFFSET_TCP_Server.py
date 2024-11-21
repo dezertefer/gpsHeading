@@ -227,30 +227,27 @@ def adjust_imu_heading_offset():
         time.sleep(1)  # Adjust every 30 seconds
         with buffer_lock:
             if original_imu_heading is not None and original_heading is not None:
-                # Normalize values
-                #imu_corrected_heading = (original_imu_heading + imu_heading_offset) % 360.0
-                gps_heading = original_heading
-                print(f"Original GPS Heading: {original_heading}")
-                # Calculate the difference
-                print(f"Original IMU Heading: {original_imu_heading}")
-                difference = (gps_heading - original_imu_heading) % 360.0
-                print(f"Original difference: {difference}")
-                
-                #if difference > 180.0:
-                #    difference -= 360.0
+                # Normalize headings (if necessary)
+                gps_heading = original_heading % 360.0
+                imu_heading = original_imu_heading % 360.0
+
+                print(f"Original GPS Heading: {gps_heading}")
+                print(f"Original IMU Heading: {imu_heading}")
+
+                # Compute the difference and normalize to [-180, 180]
+                difference = (gps_heading - imu_heading) % 360.0
+                if difference > 180.0:
+                    difference -= 360.0
+
+                print(f"Normalized difference: {difference}")
 
                 # Avoid floating-point inaccuracies
                 difference = round(difference, 7)
 
                 # Update offset if the difference exceeds a threshold
                 if abs(difference) > 0.1:
-                    imu_heading_offset = difference
-                    #imu_heading_offset %= 360.0  # Keep within [0, 360)
-                    #print(f"Updated IMU heading offset: {imu_heading_offset:.1f} degrees")
-                    #print(f"Original GPS Heading: {original_heading}")
-                    #print(f"Original IMU Heading: {original_imu_heading}")
-                    #print(f"Current IMU Offset: {imu_heading_offset}")
-                    #print(f"Heading Difference: {difference:.7f}")
+                    imu_heading_offset = (imu_heading_offset + difference) % 360.0
+                    print(f"Updated IMU heading offset: {imu_heading_offset:.1f} degrees")
                 else:
                     print(f"No significant adjustment needed. Difference: {difference:.7f}")
 
