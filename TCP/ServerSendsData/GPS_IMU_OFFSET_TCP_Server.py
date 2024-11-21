@@ -71,16 +71,18 @@ def apply_offset_and_sign(data):
     else:
         data["Heading"] = None
 
-    if original_imu_heading is not None:
-        adjusted_imu_heading = (original_imu_heading + imu_heading_offset) % 360.0
-        data["IMU_Heading"] = f"{adjusted_imu_heading:.1f}"
-    else:
-        data["IMU_Heading"] = None
+
 
     # Apply optional negation for IMU fields
     data["IMU_Roll"] = -original_imu_roll if config.get("negate_roll", False) and original_imu_roll is not None else original_imu_roll
     data["IMU_Pitch"] = -original_imu_pitch if config.get("negate_pitch", False) and original_imu_pitch is not None else original_imu_pitch
     data["IMU_Heading"] = -original_imu_heading if config.get("negate_yaw", False) and original_imu_heading is not None else original_imu_heading
+
+    if original_imu_heading is not None:
+        adjusted_imu_heading = (original_imu_heading + imu_heading_offset) % 360.0
+        data["IMU_Heading"] = f"{adjusted_imu_heading:.1f}"
+    else:
+        data["IMU_Heading"] = None
 
     # Round and format each relevant field to seven decimal places as a string
     fields_to_round_seven = ["Latitude", "Longitude", "Altitude", "Heading", "Antenna_Distance", 
