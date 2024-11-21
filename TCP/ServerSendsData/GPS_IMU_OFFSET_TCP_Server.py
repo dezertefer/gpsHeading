@@ -118,6 +118,66 @@ def start_tcp_server(host='0.0.0.0', port=13370):
         client_thread = threading.Thread(target=handle_client, args=(client_socket, client_address), daemon=True)
         client_thread.start()
 
+def parse_message(message):
+    """Parse the IMU message and convert it to a dictionary."""
+    data = {
+        'Heading': None,
+        'Pitch': None,
+        'Roll': None,
+        'Temperature': None
+    }
+
+    global original_imu_pitch
+    global original_imu_roll
+    global original_imu_heading
+    
+    try:
+        # Remove the starting '$' and ending '*checksum' if present
+        if message.startswith('$') and '*' in message:
+            message = message[1:message.index('*')]
+
+        # Extract and convert each component
+        if 'C' in message:
+            c_index = message.find('C')
+            p_index = message.find('P', c_index)
+            if p_index != -1:
+                heading_str = message[c_index+1:p_index]
+                try:
+                    original_imu_heading = float(heading_str)
+                except ValueError:
+                    print(f"Error parsing heading value: {heading_str}")
+        if 'P' in message:
+            p_index = message.find('P')
+            r_index = message.find('R', p_index)
+            if r_index != -1:
+                pitch_str = message[p_index+1:r_index]
+                try:
+                    original_imu_pitch = float(pitch_str)
+                except ValueError:
+                    print(f"Error parsing pitch value: {pitch_str}")
+        if 'R' in message:
+            r_index = message.find('R')
+            t_index = message.find('T', r_index)
+            if t_index != -1:
+                roll_str = message[r_index+1:t_index]
+                try:
+                    original_imu_roll = float(roll_str)
+                except ValueError:
+                    print(f"Error parsing roll value: {roll_str}")
+        if 'T' in message:
+            t_index = message.find('T')
+            temp_str = message[t_index+1:]
+            try:
+                data['Temperature'] = float(temp_str)
+            except ValueError:
+                print(f"Error parsing temperature value: {temp_str}")
+
+        return data  # Return parsed data as a dictionary
+
+    except Exception as e:
+        print(f"Failed to parse message: {e}")
+        return None
+
 def adjust_imu_heading_offset():
     """Periodically adjust IMU heading offset to match GPS heading."""
     global imu_heading_offset, original_imu_heading, original_heading
