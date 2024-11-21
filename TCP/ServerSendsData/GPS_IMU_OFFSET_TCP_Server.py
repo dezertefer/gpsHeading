@@ -254,7 +254,7 @@ def adjust_imu_heading_offset():
                         print(f"Updated IMU heading offset: {imu_heading_offset:.1f} degrees")
                     else:
                         print(f"No significant adjustment needed. Difference: {difference:.7f}")
-            time.sleep(30)  # Adjust every 30 seconds
+            time.sleep(1)  # Adjust every 30 seconds
 
 
 
